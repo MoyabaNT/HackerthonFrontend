@@ -6,7 +6,6 @@ import DashBoard from "./Components/DashBoard"
 import Passangers from "./Components/Passangers"
 import FAQs from "./Components/FAQs"
 import Settings from "./Components/Settings"
-import { ThemeProvider } from './Components/Themes/ThemeProvider';
 
 const router = createBrowserRouter (
 createRoutesFromElements(
@@ -27,9 +26,7 @@ function App() {
 
   return (
     <div>
-      <ThemeProvider>
       <RouterProvider router = {router} />
-      </ThemeProvider>
     </div>
   )
 }

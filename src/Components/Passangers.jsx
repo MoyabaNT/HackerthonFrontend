@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import HomeNav from './HomeNav';
 import { ThemeContext } from './Themes/ThemeContext';
-import { collection, getDocs, addDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../Firebase'; // 👈 make sure this path is correct
 
 const Passengers = () => {
@@ -25,8 +25,12 @@ const Passengers = () => {
 const handleAddPassenger = async () => {
   if (newPassenger.name && newPassenger.contact && newPassenger.pickup) {
     try {
-      const docRef = await addDoc(collection(db, 'passengers'), newPassenger);
-      setPassengers([...passengers, { id: docRef.id, ...newPassenger }]);
+      const passengerData = {
+        ...newPassenger,
+        Date: serverTimestamp(),  // Add Firestore timestamp
+      };
+      const docRef = await addDoc(collection(db, 'passengers'), passengerData);
+      setPassengers([...passengers, { id: docRef.id, ...passengerData }]);
       setNewPassenger({ name: '', contact: '', kin: '', kinContact: '', pickup: '', Destination: '' });
       setIsModalOpen(false);
     } catch (error) {
@@ -80,7 +84,9 @@ const handleAddPassenger = async () => {
                 <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-200'}`}>
                   <span className="font-medium">Destination:</span> {passenger.Destination}
                 </p>
-                <p className={`text-sm ${theme === 'light' ? 'text-gray-500' : 'text-gray-300'} mt-2`}>ID: {passenger.id}</p>
+                <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-200'}`}>
+                  <span className="font-medium">Date:</span> {passenger.Date ? passenger.Date.toDate().toLocaleString() : 'N/A'}
+                </p>
               </div>
             ))
           )}
@@ -126,7 +132,7 @@ const handleAddPassenger = async () => {
                   <input
                     id="name"
                     type="text"
-                    value={newPassenger.name}
+                    value={newPassenger.kin}
                     onChange={(e) => setNewPassenger({ ...newPassenger, kin: e.target.value })}
                     required
                     className={`mt-1 w-full px-3 py-2 border ${theme === 'light' ? 'border-gray-300' : 'border-gray-500'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600 ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-gray-600 text-white'} text-sm`}

@@ -1,11 +1,26 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import HomeNav from './HomeNav';
 import { ThemeContext } from './Themes/ThemeContext';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../Firebase'; // adjust the path based on your project structure
 
 const DashBoard = () => {
   const { theme } = useContext(ThemeContext);
-  const [passengers, setPassengers] = useState([]);
+  const [passengerCount, setPassengerCount] = useState(0);
   const [taxisDispatched, setTaxisDispatched] = useState(0);
+
+  useEffect(() => {
+    const fetchPassengerCount = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'passengers'));
+        setPassengerCount(querySnapshot.size); // Get the count
+      } catch (error) {
+        console.error('Error fetching passengers:', error);
+      }
+    };
+
+    fetchPassengerCount();
+  }, []);
 
   const handleDispatchTaxi = () => {
     setTaxisDispatched(taxisDispatched + 1);
@@ -21,11 +36,15 @@ const DashBoard = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
           <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-700'} rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200`}>
-            <h2 className={`text-lg font-semibold ${theme === 'light' ? 'text-gray-800' : 'text-white'} mb-2`}>Passengers Added</h2>
-            <p className="text-3xl font-bold text-blue-600">{passengers.length}</p>
+            <h2 className={`text-lg font-semibold ${theme === 'light' ? 'text-gray-800' : 'text-white'} mb-2`}>
+              Passengers Added
+            </h2>
+            <p className="text-3xl font-bold text-blue-600">{passengerCount}</p>
           </div>
           <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-700'} rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200`}>
-            <h2 className={`text-lg font-semibold ${theme === 'light' ? 'text-gray-800' : 'text-white'} mb-2`}>Taxis Dispatched</h2>
+            <h2 className={`text-lg font-semibold ${theme === 'light' ? 'text-gray-800' : 'text-white'} mb-2`}>
+              Taxis Dispatched
+            </h2>
             <p className="text-3xl font-bold text-blue-600">{taxisDispatched}</p>
             <button
               onClick={handleDispatchTaxi}

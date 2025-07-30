@@ -1,16 +1,31 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { auth } from '../Firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import axios from 'axios';
 
 const LogIn = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = () => {
-    // Placeholder for login logic
-    console.log('Login attempted with:', { email, password });
-    // Simulate successful login (replace with actual authentication logic)
-    navigate('/DashBoard');
+  const handleLogin = async () => {
+    try {
+      // Authenticate user using Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Now check if user exists in Firestore (via your backend)
+      const response = await axios.get(`http://localhost:5000/api/marshalls/${user.uid}`);
+      if (response.data.exists) {
+        navigate('/DashBoard');
+      } else {
+        alert('User authenticated but not found in Firestore.');
+      }
+    } catch (error) {
+      console.error('Login error:', error.message);
+      alert('Login failed: ' + error.message);
+    }
   };
 
   return (

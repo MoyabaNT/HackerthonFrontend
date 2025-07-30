@@ -1,10 +1,15 @@
 import React, { useContext, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ThemeContext } from './Themes/ThemeContext';
+import { auth } from '../Firebase'; // 🔁 adjust this path if needed
+import { signOut } from 'firebase/auth'; // ✅ this line fixes the error
+import { useNavigate } from 'react-router-dom';
+
 
 const HomeNav = () => {
   const { theme } = useContext(ThemeContext);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const navigate = useNavigate();
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -13,6 +18,23 @@ const HomeNav = () => {
   const closeSidebar = () => {
     setIsSidebarOpen(false);
   };
+
+
+const handleLogout = async () => {
+  const confirmed = window.confirm('Are you sure you want to log out?');
+
+  if (confirmed) {
+    try {
+      await signOut(auth);
+      alert('Logged out successfully.');
+      navigate('/LogIn'); // redirect to login page
+    } catch (error) {
+      console.error('Logout error:', error);
+      alert('Failed to log out. Please try again.');
+    }
+  }
+};
+
 
   return (
     <>
@@ -52,13 +74,12 @@ const HomeNav = () => {
             >
               Settings
             </Link>
-            <Link
-              to="/LogIn"
-              className={`block ${theme === 'light' ? 'text-gray-600 hover:text-blue-600' : 'text-gray-200 hover:text-blue-400'} text-sm md:text-base`}
-              onClick={closeSidebar}
+            <button
+              onClick={handleLogout}
+              className={`block w-full text-left ${theme === 'light' ? 'text-gray-600 hover:text-blue-600' : 'text-gray-200 hover:text-blue-400'} text-sm md:text-base`}
             >
               Logout
-            </Link>
+            </button>
           </nav>
         </div>
       </div>

@@ -19,7 +19,27 @@ const SignUp = () => {
       return;
     }
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Send user data to the backend
+      const response = await fetch('http://localhost:5000/api/marshalls', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          uid: user.uid,
+          username,
+          email,
+          association,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save marshall data');
+      }
+
       console.log('User signed up successfully:', { username, email, association });
       navigate('/DashBoard');
     } catch (err) {

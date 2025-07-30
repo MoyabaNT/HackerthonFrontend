@@ -1,57 +1,93 @@
 import React, { useContext, useState, useEffect } from 'react';
 import HomeNav from './HomeNav';
 import { ThemeContext } from './Themes/ThemeContext';
-import { collection, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../Firebase'; // 👈 make sure this path is correct
 
 const Passengers = () => {
   const { theme } = useContext(ThemeContext);
   const [passengers, setPassengers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newPassenger, setNewPassenger] = useState({ name: '', contact: '', kin: '', kinContact: '', pickup: '' , Destination: ''});
+  const [newPassenger, setNewPassenger] = useState({ name: '', contact: '', kin: '', kinContact: '', pickup: '', Destination: '' });
+  const [editingPassenger, setEditingPassenger] = useState(null); // Track passenger being edited
 
+  useEffect(() => {
+    const fetchPassengers = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'passengers'));
+        const data = querySnapshot.docs.map(doc => {
+          const passengerData = doc.data();
+          return {
+            id: doc.id,
+            ...passengerData,
+            Date: passengerData.Date && passengerData.Date.toDate 
+              ? passengerData.Date.toDate().toLocaleString() 
+              : 'N/A'
+          };
+        });
+        setPassengers(data);
+      } catch (error) {
+        console.error("Error fetching passengers:", error);
+      }
+    };
 
-useEffect(() => {
-  const fetchPassengers = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'passengers'));
-      const data = querySnapshot.docs.map(doc => {
-        const passengerData = doc.data();
-        return {
-          id: doc.id,
-          ...passengerData,
-          Date: passengerData.Date && passengerData.Date.toDate 
-            ? passengerData.Date.toDate().toLocaleString() 
-            : 'N/A'
+    fetchPassengers();
+  }, []);
+
+  const handleAddPassenger = async () => {
+    if (newPassenger.name && newPassenger.contact && newPassenger.pickup) {
+      try {
+        const passengerData = {
+          ...newPassenger,
+          Date: serverTimestamp(),
         };
-      });
-      setPassengers(data);
-    } catch (error) {
-      console.error("Error fetching passengers:", error);
+        const docRef = await addDoc(collection(db, 'passengers'), passengerData);
+        setPassengers([...passengers, { id: docRef.id, ...passengerData, Date: new Date().toLocaleString() }]);
+        setNewPassenger({ name: '', contact: '', kin: '', kinContact: '', pickup: '', Destination: '' });
+        setIsModalOpen(false);
+      } catch (error) {
+        console.error("Error adding passenger:", error);
+        alert("Failed to add passenger.");
+      }
     }
   };
 
-  fetchPassengers();
-}, []);
+  const handleEditPassenger = (passenger) => {
+    setEditingPassenger(passenger);
+    setNewPassenger({
+      name: passenger.name,
+      contact: passenger.contact,
+      kin: passenger.kin || '',
+      kinContact: passenger.kinContact || '',
+      pickup: passenger.pickup,
+      Destination: passenger.Destination || ''
+    });
+    setIsModalOpen(true);
+  };
 
-const handleAddPassenger = async () => {
-  if (newPassenger.name && newPassenger.contact && newPassenger.pickup) {
-    try {
-      const passengerData = {
-        ...newPassenger,
-        Date: serverTimestamp(), // Keep as Timestamp for Firestore
-      };
-      const docRef = await addDoc(collection(db, 'passengers'), passengerData);
-      setPassengers([...passengers, { id: docRef.id, ...passengerData, Date: new Date().toLocaleString() }]); // Convert to string for local state
-      setNewPassenger({ name: '', contact: '', kin: '', kinContact: '', pickup: '', Destination: '' });
-      setIsModalOpen(false);
-    } catch (error) {
-      console.error("Error adding passenger:", error);
-      alert("Failed to add passenger.");
+  const handleUpdatePassenger = async () => {
+    if (newPassenger.name && newPassenger.contact && newPassenger.pickup) {
+      try {
+        const passengerRef = doc(db, 'passengers', editingPassenger.id);
+        const passengerData = {
+          ...newPassenger,
+          Date: serverTimestamp(),
+        };
+        await updateDoc(passengerRef, passengerData);
+        setPassengers(passengers.map(p => 
+          p.id === editingPassenger.id 
+            ? { ...passengerData, id: editingPassenger.id, Date: new Date().toLocaleString() } 
+            : p
+        ));
+        setNewPassenger({ name: '', contact: '', kin: '', kinContact: '', pickup: '', Destination: '' });
+        setEditingPassenger(null);
+        setIsModalOpen(false);
+      } catch (error) {
+        console.error("Error updating passenger:", error);
+        alert("Failed to update passenger.");
+      }
     }
-  }
-};
-
+  };
 
   return (
     <div className={`flex min-h-screen ${theme === 'light' ? 'bg-gradient-to-b from-gray-50 to-gray-100' : 'bg-gradient-to-b from-gray-800 to-gray-900'}`}>
@@ -63,7 +99,11 @@ const handleAddPassenger = async () => {
 
         <div className="mb-8">
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              setEditingPassenger(null);
+              setNewPassenger({ name: '', contact: '', kin: '', kinContact: '', pickup: '', Destination: '' });
+              setIsModalOpen(true);
+            }}
             className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transform hover:scale-105 transition-transform duration-200 text-sm sm:text-base"
           >
             Add New Passenger
@@ -97,10 +137,16 @@ const handleAddPassenger = async () => {
                 <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-200'}`}>
                   <span className="font-medium">Destination:</span> {passenger.Destination}
                 </p>
-<p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-200'}`}>
-  <span className="font-medium">Date:</span> {passenger.Date}
-</p>
-        </div>
+                <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-200'}`}>
+                  <span className="font-medium">Date:</span> {passenger.Date}
+                </p>
+                <button
+                  onClick={() => handleEditPassenger(passenger)}
+                  className={`mt-4 px-4 py-2 bg-yellow-500 text-white rounded-md font-semibold hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm transform hover:scale-105 transition-transform duration-200`}
+                >
+                  Edit
+                </button>
+              </div>
             ))
           )}
         </div>
@@ -108,7 +154,9 @@ const handleAddPassenger = async () => {
         {isModalOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-700'} p-4 sm:p-6 rounded-lg shadow-xl max-w-md w-full transform transition-all duration-300 scale-95 animate-in`}>
-              <h2 className={`text-lg sm:text-xl font-bold ${theme === 'light' ? 'text-gray-800' : 'text-white'} mb-4`}>Add New Passenger</h2>
+              <h2 className={`text-lg sm:text-xl font-bold ${theme === 'light' ? 'text-gray-800' : 'text-white'} mb-4`}>
+                {editingPassenger ? 'Edit Passenger' : 'Add New Passenger'}
+              </h2>
               <div className="space-y-4">
                 <div>
                   <label htmlFor="name" className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>
@@ -126,7 +174,7 @@ const handleAddPassenger = async () => {
                 </div>
                 <div>
                   <label htmlFor="contact" className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>
-                     Contact Number
+                    Contact Number
                   </label>
                   <input
                     id="contact"
@@ -139,29 +187,27 @@ const handleAddPassenger = async () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="name" className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>
+                  <label htmlFor="kin" className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>
                     Kin
                   </label>
                   <input
-                    id="name"
+                    id="kin"
                     type="text"
                     value={newPassenger.kin}
                     onChange={(e) => setNewPassenger({ ...newPassenger, kin: e.target.value })}
-                    required
                     className={`mt-1 w-full px-3 py-2 border ${theme === 'light' ? 'border-gray-300' : 'border-gray-500'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600 ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-gray-600 text-white'} text-sm`}
-                    placeholder="Enter net of Kin"
+                    placeholder="Enter next of kin"
                   />
                 </div>
                 <div>
-                  <label htmlFor="contact" className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>
-                    Next of Kin Contact number
+                  <label htmlFor="kinContact" className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>
+                    Next of Kin Contact Number
                   </label>
                   <input
-                    id="contact"
+                    id="kinContact"
                     type="tel"
                     value={newPassenger.kinContact}
                     onChange={(e) => setNewPassenger({ ...newPassenger, kinContact: e.target.value })}
-                    required
                     className={`mt-1 w-full px-3 py-2 border ${theme === 'light' ? 'border-gray-300' : 'border-gray-500'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600 ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-gray-600 text-white'} text-sm`}
                     placeholder="Enter Kin Contact Number"
                   />
@@ -182,7 +228,7 @@ const handleAddPassenger = async () => {
                 </div>
                 <div>
                   <label htmlFor="Destination" className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>
-                     Destination
+                    Destination
                   </label>
                   <input
                     id="Destination"
@@ -196,16 +242,20 @@ const handleAddPassenger = async () => {
                 </div>
                 <div className="flex justify-end space-x-3">
                   <button
-                    onClick={() => setIsModalOpen(false)}
+                    onClick={() => {
+                      setNewPassenger({ name: '', contact: '', kin: '', kinContact: '', pickup: '', Destination: '' });
+                      setEditingPassenger(null);
+                      setIsModalOpen(false);
+                    }}
                     className={`px-4 py-2 ${theme === 'light' ? 'text-gray-600 hover:bg-gray-100' : 'text-gray-200 hover:bg-gray-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-gray-300 text-sm`}
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleAddPassenger}
+                    onClick={editingPassenger ? handleUpdatePassenger : handleAddPassenger}
                     className="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm transform hover:scale-105 transition-transform duration-200"
                   >
-                    Add Passenger
+                    {editingPassenger ? 'Update Passenger' : 'Add Passenger'}
                   </button>
                 </div>
               </div>

@@ -1,6 +1,8 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import HomeNav from './HomeNav';
 import { ThemeContext } from './Themes/ThemeContext';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
+import { db } from '../Firebase'; // 👈 make sure this path is correct
 
 const Passengers = () => {
   const { theme } = useContext(ThemeContext);
@@ -8,16 +10,31 @@ const Passengers = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newPassenger, setNewPassenger] = useState({ name: '', contact: '', kin: '', kinContact: '', pickup: '' , Destination: ''});
 
-  const handleAddPassenger = () => {
-    if (newPassenger.name && newPassenger.contact && newPassenger.pickup) {
-      setPassengers([
-        ...passengers,
-        { id: passengers.length + 1, ...newPassenger },
-      ]);
-      setNewPassenger({ name: '', contact: '',  kin: '', kinContact: '', pickup: '', Destination: '' });
-      setIsModalOpen(false);
-    }
+
+  useEffect(() => {
+    const fetchPassengers = async () => {
+    const querySnapshot = await getDocs(collection(db, 'passengers'));
+    const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setPassengers(data);
   };
+
+  fetchPassengers();
+}, []);
+
+
+const handleAddPassenger = async () => {
+  if (newPassenger.name && newPassenger.contact && newPassenger.pickup) {
+    try {
+      const docRef = await addDoc(collection(db, 'passengers'), newPassenger);
+      setPassengers([...passengers, { id: docRef.id, ...newPassenger }]);
+      setNewPassenger({ name: '', contact: '', kin: '', kinContact: '', pickup: '', Destination: '' });
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error("Error adding passenger:", error);
+      alert("Failed to add passenger.");
+    }
+  }
+};
 
   return (
     <div className={`flex min-h-screen ${theme === 'light' ? 'bg-gradient-to-b from-gray-50 to-gray-100' : 'bg-gradient-to-b from-gray-800 to-gray-900'}`}>

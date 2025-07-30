@@ -11,26 +11,38 @@ const Passengers = () => {
   const [newPassenger, setNewPassenger] = useState({ name: '', contact: '', kin: '', kinContact: '', pickup: '' , Destination: ''});
 
 
-  useEffect(() => {
-    const fetchPassengers = async () => {
-    const querySnapshot = await getDocs(collection(db, 'passengers'));
-    const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setPassengers(data);
+useEffect(() => {
+  const fetchPassengers = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'passengers'));
+      const data = querySnapshot.docs.map(doc => {
+        const passengerData = doc.data();
+        return {
+          id: doc.id,
+          ...passengerData,
+          Date: passengerData.Date && passengerData.Date.toDate 
+            ? passengerData.Date.toDate().toLocaleString() 
+            : 'N/A'
+        };
+      });
+      setPassengers(data);
+    } catch (error) {
+      console.error("Error fetching passengers:", error);
+    }
   };
 
   fetchPassengers();
 }, []);
-
 
 const handleAddPassenger = async () => {
   if (newPassenger.name && newPassenger.contact && newPassenger.pickup) {
     try {
       const passengerData = {
         ...newPassenger,
-        Date: serverTimestamp(),  // Add Firestore timestamp
+        Date: serverTimestamp(), // Keep as Timestamp for Firestore
       };
       const docRef = await addDoc(collection(db, 'passengers'), passengerData);
-      setPassengers([...passengers, { id: docRef.id, ...passengerData }]);
+      setPassengers([...passengers, { id: docRef.id, ...passengerData, Date: new Date().toLocaleString() }]); // Convert to string for local state
       setNewPassenger({ name: '', contact: '', kin: '', kinContact: '', pickup: '', Destination: '' });
       setIsModalOpen(false);
     } catch (error) {
@@ -39,6 +51,7 @@ const handleAddPassenger = async () => {
     }
   }
 };
+
 
   return (
     <div className={`flex min-h-screen ${theme === 'light' ? 'bg-gradient-to-b from-gray-50 to-gray-100' : 'bg-gradient-to-b from-gray-800 to-gray-900'}`}>
@@ -84,10 +97,10 @@ const handleAddPassenger = async () => {
                 <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-200'}`}>
                   <span className="font-medium">Destination:</span> {passenger.Destination}
                 </p>
-                <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-200'}`}>
-                  <span className="font-medium">Date:</span> {passenger.Date ? passenger.Date.toDate().toLocaleString() : 'N/A'}
-                </p>
-              </div>
+<p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-200'}`}>
+  <span className="font-medium">Date:</span> {passenger.Date}
+</p>
+        </div>
             ))
           )}
         </div>

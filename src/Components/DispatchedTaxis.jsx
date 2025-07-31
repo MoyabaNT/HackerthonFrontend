@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import HomeNav from './HomeNav';
 import { ThemeContext } from './Themes/ThemeContext';
-import { collection, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../Firebase'; // Adjust the path based on your project structure
 
 const DispatchedTaxis = () => {
@@ -9,6 +9,7 @@ const DispatchedTaxis = () => {
   const [taxis, setTaxis] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTaxi, setNewTaxi] = useState({ driverName: '', vehicleNumber: '', destination: '' });
+  const [editingTaxi, setEditingTaxi] = useState(null); // Track taxi being edited
 
   useEffect(() => {
     const fetchTaxis = async () => {
@@ -51,6 +52,40 @@ const DispatchedTaxis = () => {
     }
   };
 
+  const handleEditTaxi = (taxi) => {
+    setEditingTaxi(taxi);
+    setNewTaxi({
+      driverName: taxi.driverName,
+      vehicleNumber: taxi.vehicleNumber,
+      destination: taxi.destination
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleUpdateTaxi = async () => {
+    if (newTaxi.driverName && newTaxi.vehicleNumber && newTaxi.destination) {
+      try {
+        const taxiRef = doc(db, 'dispatchedTaxis', editingTaxi.id);
+        const taxiData = {
+          ...newTaxi,
+          dispatchTime: serverTimestamp(),
+        };
+        await updateDoc(taxiRef, taxiData);
+        setTaxis(taxis.map(t => 
+          t.id === editingTaxi.id 
+            ? { ...taxiData, id: editingTaxi.id, dispatchTime: new Date().toLocaleString() } 
+            : t
+        ));
+        setNewTaxi({ driverName: '', vehicleNumber: '', destination: '' });
+        setEditingTaxi(null);
+        setIsModalOpen(false);
+      } catch (error) {
+        console.error("Error updating taxi:", error);
+        alert("Failed to update taxi.");
+      }
+    }
+  };
+
   return (
     <div className={`flex min-h-screen ${theme === 'light' ? 'bg-gradient-to-b from-gray-50 to-gray-100' : 'bg-gradient-to-b from-gray-800 to-gray-900'}`}>
       <HomeNav />
@@ -61,7 +96,11 @@ const DispatchedTaxis = () => {
 
         <div className="mb-8">
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              setEditingTaxi(null);
+              setNewTaxi({ driverName: '', vehicleNumber: '', destination: '' });
+              setIsModalOpen(true);
+            }}
             className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transform hover:scale-105 transition-transform duration-200 text-sm sm:text-base"
           >
             Dispatch New Taxi
@@ -89,6 +128,12 @@ const DispatchedTaxis = () => {
                 <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-200'}`}>
                   <span className="font-medium">Dispatch Time:</span> {taxi.dispatchTime}
                 </p>
+                <button
+                  onClick={() => handleEditTaxi(taxi)}
+                  className={`mt-4 px-4 py-2 bg-yellow-500 text-white rounded-md font-semibold hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm transform hover:scale-105 transition-transform duration-200`}
+                >
+                  Edit
+                </button>
               </div>
             ))
           )}
@@ -97,7 +142,9 @@ const DispatchedTaxis = () => {
         {isModalOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-700'} p-4 sm:p-6 rounded-lg shadow-xl max-w-md w-full transform transition-all duration-300 scale-95 animate-in`}>
-              <h2 className={`text-lg sm:text-xl font-bold ${theme === 'light' ? 'text-gray-800' : 'text-white'} mb-4`}>Dispatch New Taxi</h2>
+              <h2 className={`text-lg sm:text-xl font-bold ${theme === 'light' ? 'text-gray-800' : 'text-white'} mb-4`}>
+                {editingTaxi ? 'Edit Taxi' : 'Dispatch New Taxi'}
+              </h2>
               <div className="space-y-4">
                 <div>
                   <label htmlFor="driverName" className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>
@@ -143,16 +190,20 @@ const DispatchedTaxis = () => {
                 </div>
                 <div className="flex justify-end space-x-3">
                   <button
-                    onClick={() => setIsModalOpen(false)}
+                    onClick={() => {
+                      setNewTaxi({ driverName: '', vehicleNumber: '', destination: '' });
+                      setEditingTaxi(null);
+                      setIsModalOpen(false);
+                    }}
                     className={`px-4 py-2 ${theme === 'light' ? 'text-gray-600 hover:bg-gray-100' : 'text-gray-200 hover:bg-gray-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-gray-300 text-sm`}
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleAddTaxi}
+                    onClick={editingTaxi ? handleUpdateTaxi : handleAddTaxi}
                     className="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm transform hover:scale-105 transition-transform duration-200"
                   >
-                    Dispatch Taxi
+                    {editingTaxi ? 'Update Taxi' : 'Dispatch Taxi'}
                   </button>
                 </div>
               </div>

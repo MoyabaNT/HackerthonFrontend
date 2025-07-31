@@ -8,6 +8,7 @@ const DashBoard = () => {
   const { theme } = useContext(ThemeContext);
   const [passengerCount, setPassengerCount] = useState(0);
   const [taxisDispatched, setTaxisDispatched] = useState(0);
+  const [showPopup, setShowPopup] = useState(false);
 
   useEffect(() => {
     const fetchPassengerCount = async () => {
@@ -23,7 +24,12 @@ const DashBoard = () => {
   }, []);
 
   const handleDispatchTaxi = () => {
+    setShowPopup(true);
     setTaxisDispatched(taxisDispatched + 1);
+    // Hide popup after 5 seconds to simulate driver response
+    setTimeout(() => {
+      setShowPopup(false);
+    }, 5000);
   };
 
   return (
@@ -54,6 +60,16 @@ const DashBoard = () => {
             </button>
           </div>
         </div>
+
+        {showPopup && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-700'} p-6 rounded-lg shadow-xl max-w-sm w-full transform transition-all duration-300 scale-95 animate-in`}>
+              <p className={`text-lg font-semibold ${theme === 'light' ? 'text-gray-800' : 'text-white'} text-center`}>
+                Waiting for the driver to accept dispatch
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import DashBoard from "./Components/DashBoard"
 import Passangers from "./Components/Passangers"
 import FAQs from "./Components/FAQs"
 import Settings from "./Components/Settings"
+import DispatchedTaxis from "./Components/DispatchedTaxis"
 
 const router = createBrowserRouter (
 createRoutesFromElements(
@@ -17,6 +18,7 @@ createRoutesFromElements(
     <Route path='/Passangers' element={<Passangers />} />
     <Route path='/FAQs' element={<FAQs />} />
     <Route path='/Settings' element={<Settings />} />
+    <Route path='/DispatchedTaxis' element={<DispatchedTaxis />} />
   </>
 )
 ) 

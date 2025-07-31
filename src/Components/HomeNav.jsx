@@ -44,7 +44,7 @@ const handleLogout = async () => {
         } md:translate-x-0 transition-transform duration-300 ease-in-out z-50`}
       >
         <div className="p-4">
-          <h2 className={`text-2xl font-bold ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`}>Farfare</h2>
+          <h2 className={`text-2xl font-bold mt-6 ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`}>Farfare</h2>
           <nav className="mt-8 space-y-4">
             <Link
               to="/dashboard"
@@ -59,6 +59,13 @@ const handleLogout = async () => {
               onClick={closeSidebar}
             >
               Passengers
+            </Link>
+            <Link
+              to="/DispatchedTaxis"
+              className={`block ${theme === 'light' ? 'text-gray-600 hover:text-blue-600' : 'text-gray-200 hover:text-blue-400'} text-sm md:text-base`}
+              onClick={closeSidebar}
+            >
+              Dispatched Taxis
             </Link>
             <Link
               to="/faqs"

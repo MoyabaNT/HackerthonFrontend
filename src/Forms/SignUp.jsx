@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-     import { Link, useNavigate } from 'react-router-dom';
-     import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-     import { app } from '../Firebase'; // Adjust the import path based on your project structure
+import { Link, useNavigate } from 'react-router-dom';
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { app } from '../Firebase'; // Adjust the import path based on your project structure
 
      const SignUp = () => {
        const [username, setUsername] = useState('');
@@ -51,7 +51,7 @@ import React, { useState } from 'react';
          <div className="min-h-screen bg-gray-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
            <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-lg">
              <div className="text-center">
-               <h2 className="text-3xl font-bold text-blue-600 mb-2">Farfare</h2>
+                <Link to='/'><h2 className="text-3xl font-bold text-blue-600 mb-2">Farfare</h2></Link>
                <p className="text-gray-600 mb-6">Sign up to streamline passenger management</p>
              </div>
              <div className="space-y-6">

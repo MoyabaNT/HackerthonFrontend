@@ -32,7 +32,7 @@ import React, { useState } from 'react';
          <div className="min-h-screen bg-gray-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
            <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-lg">
              <div className="text-center">
-               <h2 className="text-3xl font-bold text-blue-600 mb-2">Farfare</h2>
+                <Link to='/'><h2 className="text-3xl font-bold text-blue-600 mb-2">Farfare</h2></Link>
                <p className="text-gray-600 mb-6">Log in to manage passenger records</p>
              </div>
              <div className="space-y-6">

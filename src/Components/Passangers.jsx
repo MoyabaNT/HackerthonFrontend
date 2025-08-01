@@ -1,91 +1,164 @@
 import React, { useContext, useState, useEffect } from 'react';
+import emailjs from 'emailjs-com';
 import HomeNav from './HomeNav';
 import { ThemeContext } from './Themes/ThemeContext';
 import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../Firebase'; // 👈 make sure this path is correct
+import { db } from '../Firebase';
 
 const Passengers = () => {
   const { theme } = useContext(ThemeContext);
   const [passengers, setPassengers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newPassenger, setNewPassenger] = useState({ name: '', contact: '', kin: '', kinContact: '', pickup: '', Destination: '' });
-  const [editingPassenger, setEditingPassenger] = useState(null); // Track passenger being edited
+  const [newPassenger, setNewPassenger] = useState({
+    name: '',
+    contact: '',
+    kin: '',
+    kinContact: '',
+    kinmail: '',
+    pickup: '',
+    destination: '',
+  });
+  const [editingPassenger, setEditingPassenger] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    emailjs.init('3yXkjtJrgGGkyuvav');
+  }, []);
 
   useEffect(() => {
     const fetchPassengers = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, 'passengers'));
-        const data = querySnapshot.docs.map(doc => {
+        const data = querySnapshot.docs.map((doc) => {
           const passengerData = doc.data();
           return {
             id: doc.id,
             ...passengerData,
-            Date: passengerData.Date && passengerData.Date.toDate 
-              ? passengerData.Date.toDate().toLocaleString() 
-              : 'N/A'
+            date: passengerData.Date && passengerData.Date.toDate
+              ? passengerData.Date.toDate().toLocaleString()
+              : 'N/A',
           };
         });
         setPassengers(data);
       } catch (error) {
-        console.error("Error fetching passengers:", error);
+        console.error('Error fetching passengers:', error);
+        setError('Failed to fetch passengers.');
       }
     };
 
     fetchPassengers();
   }, []);
 
+  const sendPassengerEmail = async (passengerData, action) => {
+    try {
+      const templateParams = {
+        'passengerData.name': passengerData.name,
+        'passengerData.contact': passengerData.contact,
+        'passengerData.kin': passengerData.kin || 'N/A',
+        'passengerData.kinContact': passengerData.kinContact || 'N/A',
+        'passengerData.kinmail': passengerData.kinmail || 'N/A',
+        'passengerData.pickup': passengerData.pickup,
+        'passengerData.destination': passengerData.destination || 'N/A',
+        'passengerData.date': new Date().toLocaleString('en-ZA', {
+          timeZone: 'Africa/Johannesburg',
+          dateStyle: 'medium',
+          timeStyle: 'short',
+        }),
+        action: action,
+      };
+
+      await emailjs.send('service_xhlgfp5', 'template_o9tlfri', templateParams);
+      alert(`Passenger ${action.toLowerCase()} email sent successfully!`);
+    } catch (error) {
+      console.error(`Error sending ${action.toLowerCase()} passenger email:`, error);
+      alert(`Failed to send ${action.toLowerCase()} passenger email.`);
+    }
+  };
+
+  const validateInputs = () => {
+    if (!newPassenger.name) return 'Name is required.';
+    if (!newPassenger.contact) return 'Contact number is required.';
+    if (!newPassenger.pickup) return 'Pickup location is required.';
+    if (!newPassenger.kinmail) return 'Next of kin email is required.';
+    return '';
+  };
+
   const handleAddPassenger = async () => {
-    if (newPassenger.name && newPassenger.contact && newPassenger.pickup) {
-      try {
-        const passengerData = {
-          ...newPassenger,
-          Date: serverTimestamp(),
-        };
-        const docRef = await addDoc(collection(db, 'passengers'), passengerData);
-        setPassengers([...passengers, { id: docRef.id, ...passengerData, Date: new Date().toLocaleString() }]);
-        setNewPassenger({ name: '', contact: '', kin: '', kinContact: '', pickup: '', Destination: '' });
-        setIsModalOpen(false);
-      } catch (error) {
-        console.error("Error adding passenger:", error);
-        alert("Failed to add passenger.");
-      }
+    const validationError = validateInputs();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    try {
+      const passengerData = {
+        ...newPassenger,
+        Date: serverTimestamp(),
+      };
+      const docRef = await addDoc(collection(db, 'passengers'), passengerData);
+      const newPassengerWithId = {
+        id: docRef.id,
+        ...passengerData,
+        date: new Date().toLocaleString(),
+      };
+      setPassengers([...passengers, newPassengerWithId]);
+
+      await sendPassengerEmail(newPassenger, 'Added');
+
+      setNewPassenger({ name: '', contact: '', kin: '', kinContact: '', kinmail: '', pickup: '', destination: '' });
+      setIsModalOpen(false);
+      setError('');
+    } catch (error) {
+      console.error('Error adding passenger:', error);
+      setError('Failed to add passenger.');
     }
   };
 
   const handleEditPassenger = (passenger) => {
     setEditingPassenger(passenger);
     setNewPassenger({
-      name: passenger.name,
-      contact: passenger.contact,
+      name: passenger.name || '',
+      contact: passenger.contact || '',
       kin: passenger.kin || '',
       kinContact: passenger.kinContact || '',
-      pickup: passenger.pickup,
-      Destination: passenger.Destination || ''
+      kinmail: passenger.kinmail || '',
+      pickup: passenger.pickup || '',
+      destination: passenger.destination || '',
     });
     setIsModalOpen(true);
+    setError('');
   };
 
   const handleUpdatePassenger = async () => {
-    if (newPassenger.name && newPassenger.contact && newPassenger.pickup) {
-      try {
-        const passengerRef = doc(db, 'passengers', editingPassenger.id);
-        const passengerData = {
-          ...newPassenger,
-          Date: serverTimestamp(),
-        };
-        await updateDoc(passengerRef, passengerData);
-        setPassengers(passengers.map(p => 
-          p.id === editingPassenger.id 
-            ? { ...passengerData, id: editingPassenger.id, Date: new Date().toLocaleString() } 
-            : p
-        ));
-        setNewPassenger({ name: '', contact: '', kin: '', kinContact: '', pickup: '', Destination: '' });
-        setEditingPassenger(null);
-        setIsModalOpen(false);
-      } catch (error) {
-        console.error("Error updating passenger:", error);
-        alert("Failed to update passenger.");
-      }
+    const validationError = validateInputs();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    try {
+      const passengerRef = doc(db, 'passengers', editingPassenger.id);
+      const passengerData = {
+        ...newPassenger,
+        Date: serverTimestamp(),
+      };
+      await updateDoc(passengerRef, passengerData);
+      const updatedPassenger = {
+        ...passengerData,
+        id: editingPassenger.id,
+        date: new Date().toLocaleString(),
+      };
+      setPassengers(passengers.map((p) => (p.id === editingPassenger.id ? updatedPassenger : p)));
+
+      await sendPassengerEmail(newPassenger, 'Updated');
+
+      setNewPassenger({ name: '', contact: '', kin: '', kinContact: '', kinmail: '', pickup: '', destination: '' });
+      setEditingPassenger(null);
+      setIsModalOpen(false);
+      setError('');
+    } catch (error) {
+      console.error('Error updating passenger:', error);
+      setError('Failed to update passenger.');
     }
   };
 
@@ -97,12 +170,19 @@ const Passengers = () => {
           Passenger List
         </h1>
 
+        {error && (
+          <div className={`mb-4 p-4 rounded-md ${theme === 'light' ? 'bg-red-100 text-red-700' : 'bg-red-900 text-red-200'}`}>
+            {error}
+          </div>
+        )}
+
         <div className="mb-8">
           <button
             onClick={() => {
               setEditingPassenger(null);
-              setNewPassenger({ name: '', contact: '', kin: '', kinContact: '', pickup: '', Destination: '' });
+              setNewPassenger({ name: '', contact: '', kin: '', kinContact: '', kinmail: '', pickup: '', destination: '' });
               setIsModalOpen(true);
+              setError('');
             }}
             className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transform hover:scale-105 transition-transform duration-200 text-sm sm:text-base"
           >
@@ -126,23 +206,26 @@ const Passengers = () => {
                   <span className="font-medium">Contact:</span> {passenger.contact}
                 </p>
                 <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-200'}`}>
-                  <span className="font-medium">Kin:</span> {passenger.kin}
+                  <span className="font-medium">Kin:</span> {passenger.kin || 'N/A'}
                 </p>
                 <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-200'}`}>
-                  <span className="font-medium">Contact:</span> {passenger.kinContact}
+                  <span className="font-medium">Kin Contact:</span> {passenger.kinContact || 'N/A'}
+                </p>
+                <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-200'}`}>
+                  <span className="font-medium">Kin Email:</span> {passenger.kinmail || 'N/A'}
                 </p>
                 <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-200'}`}>
                   <span className="font-medium">Pickup:</span> {passenger.pickup}
                 </p>
                 <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-200'}`}>
-                  <span className="font-medium">Destination:</span> {passenger.Destination}
+                  <span className="font-medium">Destination:</span> {passenger.destination || 'N/A'}
                 </p>
                 <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-200'}`}>
-                  <span className="font-medium">Date:</span> {passenger.Date}
+                  <span className="font-medium">Date:</span> {passenger.date}
                 </p>
                 <button
                   onClick={() => handleEditPassenger(passenger)}
-                  className={`mt-4 px-4 py-2 bg-yellow-500 text-white rounded-md font-semibold hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm transform hover:scale-105 transition-transform duration-200`}
+                  className="mt-4 px-4 py-2 bg-yellow-500 text-white rounded-md font-semibold hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm transform hover:scale-105 transition-transform duration-200"
                 >
                   Edit
                 </button>
@@ -165,7 +248,7 @@ const Passengers = () => {
                   <input
                     id="name"
                     type="text"
-                    value={newPassenger.name}
+                    value={newPassenger.name || ''}
                     onChange={(e) => setNewPassenger({ ...newPassenger, name: e.target.value })}
                     required
                     className={`mt-1 w-full px-3 py-2 border ${theme === 'light' ? 'border-gray-300' : 'border-gray-500'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600 ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-gray-600 text-white'} text-sm`}
@@ -179,21 +262,21 @@ const Passengers = () => {
                   <input
                     id="contact"
                     type="tel"
-                    value={newPassenger.contact}
+                    value={newPassenger.contact || ''}
                     onChange={(e) => setNewPassenger({ ...newPassenger, contact: e.target.value })}
                     required
                     className={`mt-1 w-full px-3 py-2 border ${theme === 'light' ? 'border-gray-300' : 'border-gray-500'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600 ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-gray-600 text-white'} text-sm`}
-                    placeholder="Enter Contact Number"
+                    placeholder="Enter contact number"
                   />
                 </div>
                 <div>
                   <label htmlFor="kin" className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>
-                    Kin
+                    Next of Kin
                   </label>
                   <input
                     id="kin"
                     type="text"
-                    value={newPassenger.kin}
+                    value={newPassenger.kin || ''}
                     onChange={(e) => setNewPassenger({ ...newPassenger, kin: e.target.value })}
                     className={`mt-1 w-full px-3 py-2 border ${theme === 'light' ? 'border-gray-300' : 'border-gray-500'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600 ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-gray-600 text-white'} text-sm`}
                     placeholder="Enter next of kin"
@@ -206,10 +289,24 @@ const Passengers = () => {
                   <input
                     id="kinContact"
                     type="tel"
-                    value={newPassenger.kinContact}
+                    value={newPassenger.kinContact || ''}
                     onChange={(e) => setNewPassenger({ ...newPassenger, kinContact: e.target.value })}
                     className={`mt-1 w-full px-3 py-2 border ${theme === 'light' ? 'border-gray-300' : 'border-gray-500'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600 ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-gray-600 text-white'} text-sm`}
-                    placeholder="Enter Kin Contact Number"
+                    placeholder="Enter kin contact number"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="kinmail" className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>
+                    Next of Kin Email
+                  </label>
+                  <input
+                    id="kinmail"
+                    type="email"
+                    value={newPassenger.kinmail || ''}
+                    onChange={(e) => setNewPassenger({ ...newPassenger, kinmail: e.target.value })}
+                    required
+                    className={`mt-1 w-full px-3 py-2 border ${theme === 'light' ? 'border-gray-300' : 'border-gray-500'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600 ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-gray-600 text-white'} text-sm`}
+                    placeholder="Enter next of kin email"
                   />
                 </div>
                 <div>
@@ -219,7 +316,7 @@ const Passengers = () => {
                   <input
                     id="pickup"
                     type="text"
-                    value={newPassenger.pickup}
+                    value={newPassenger.pickup || ''}
                     onChange={(e) => setNewPassenger({ ...newPassenger, pickup: e.target.value })}
                     required
                     className={`mt-1 w-full px-3 py-2 border ${theme === 'light' ? 'border-gray-300' : 'border-gray-500'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600 ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-gray-600 text-white'} text-sm`}
@@ -227,25 +324,25 @@ const Passengers = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="Destination" className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>
+                  <label htmlFor="destination" className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-gray-200'}`}>
                     Destination
                   </label>
                   <input
-                    id="Destination"
+                    id="destination"
                     type="text"
-                    value={newPassenger.Destination}
-                    onChange={(e) => setNewPassenger({ ...newPassenger, Destination: e.target.value })}
-                    required
+                    value={newPassenger.destination || ''}
+                    onChange={(e) => setNewPassenger({ ...newPassenger, destination: e.target.value })}
                     className={`mt-1 w-full px-3 py-2 border ${theme === 'light' ? 'border-gray-300' : 'border-gray-500'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600 ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-gray-600 text-white'} text-sm`}
-                    placeholder="Enter Destination"
+                    placeholder="Enter destination"
                   />
                 </div>
                 <div className="flex justify-end space-x-3">
                   <button
                     onClick={() => {
-                      setNewPassenger({ name: '', contact: '', kin: '', kinContact: '', pickup: '', Destination: '' });
+                      setNewPassenger({ name: '', contact: '', kin: '', kinContact: '', kinmail: '', pickup: '', destination: '' });
                       setEditingPassenger(null);
                       setIsModalOpen(false);
+                      setError('');
                     }}
                     className={`px-4 py-2 ${theme === 'light' ? 'text-gray-600 hover:bg-gray-100' : 'text-gray-200 hover:bg-gray-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-gray-300 text-sm`}
                   >
